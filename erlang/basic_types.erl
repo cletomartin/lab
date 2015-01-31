@@ -1,4 +1,4 @@
--module(tutorial).
+-module(basic_types).
 -export([double/1, fac/1, mult/2]).
 -export([convert/2, convert_length/1]).
 -export([list_length/1]).
