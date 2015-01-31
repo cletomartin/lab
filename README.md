@@ -1,1 +1,1 @@
-Just proof of concepts and exercises. Not interested at all.
+Just proof of concepts and exercises. Not interesting at all.
