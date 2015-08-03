@@ -26,4 +26,4 @@ is_pair_case() ->
             io:format("The number ~w is pair~n", [Number]);
         1 ->
             io:format("The number ~w is not pair~n", [Number]);
-    end.
+        end.
