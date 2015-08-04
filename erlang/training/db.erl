@@ -57,7 +57,7 @@ delete(Key, [Element | T]) ->
 
 match(_, []) ->
     [];
-match(Value, [{Key, Element}|T]) when Value =/= Element ->
+match(Value, [{_, Element}|T]) when Value =/= Element ->
     match(Value, T);
 match(Value, [{Key, Value}|T]) ->
     [Key|delete(Key, match(Value, T))].
