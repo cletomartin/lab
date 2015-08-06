@@ -2,7 +2,7 @@
 
 -module(my_db).
 
--export([test/0, init/0, new/0, write/3, read/2, delete/2, match/2, destroy/1]).
+-export([test/0, init/0, new/0, write/3, read/2, delete/2, match/2, destroy/1, code_upgrade/1]).
 
 
 new() ->
@@ -35,6 +35,9 @@ match(Element, Db) ->
 
 destroy(Db) ->
     send_and_wait(Db, [destroy]).
+
+code_upgrade(Db) ->
+    send_and_wait(Db, [code_upgrade]).
 
 
 loop(State) ->

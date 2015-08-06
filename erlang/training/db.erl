@@ -10,7 +10,10 @@
 % db:read(Key, DbRef) -> {ok, Element} | {error, instance}.
 % db:match(Element, DbRef) -> [Key1, ..., KeyN].
 
--export([test/0, new/0, write/3, read/2, delete/2, match/2, destroy/1]).
+-export(
+   [test/0, new/0, write/3, read/2, delete/2, match/2, destroy/1,
+    code_upgrade/1]
+  ).
 
 
 test() ->
@@ -29,6 +32,11 @@ test() ->
     [] = [manchester_city, river] -- Result00,
     [] = db:match(chelsew, DbRef50),
     ok = db:destroy(DbRef50),
+    DbRef60 = db:code_upgrade([{boca, soccer}, {liverpool, soccer}]),
+    {error, instance} = db:read(barcelona, DbRef60),
+    {ok, instance} = db:read(boca, DbRef60),
+    {ok, instance} = db:read(liverpool, DbRef60),
+    ok = db:destroy(DbRef60),
     ok.
 
 new() ->
@@ -64,3 +72,8 @@ match(Value, [{Key, Value}|T]) ->
 
 destroy(_) ->
     ok.
+
+code_upgrade(Db) ->
+    NewDb = new(),
+    lists:foreach(fun({K, V}) -> write(K, V, NewDb) end, Db),
+    NewDb.
