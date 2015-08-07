@@ -51,13 +51,13 @@ test() ->
 %% V2
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% init(Author) -> commit:new(Author, init, []).
-% add(Author, File, Commit) ->
-%   commit:new(Author, {add, File}, [Commit]).
-% delete(Author, File, Commit) ->
-%   commit:new(Author, {delete, File}, [Commit]).
-% merge(Author, Commit1, Commit2) ->
-%   commit:new(Author, merge, [Commit1, Commit2]).
+init(Author) -> commit:new(Author, init, []).
+add(Author, File, Commit) ->
+  commit:new(Author, {add, File}, [Commit]).
+delete(Author, File, Commit) ->
+  commit:new(Author, {delete, File}, [Commit]).
+merge(Author, Commit1, Commit2) ->
+  commit:new(Author, merge, [Commit1, Commit2]).
 
 % blame(File, Commit) ->
 %   case commit:affects_file(File, Commit) of

@@ -1,88 +1,159 @@
-% -*- mode:erlang -*-
-
 -module(my_db).
 
--export([test/0, init/0, new/0, write/3, read/2, delete/2, match/2, destroy/1, code_upgrade/1]).
-
-
-new() ->
-    spawn(my_db, init, []).
-
-init() ->
-    State = db:new(),
-    loop(State).
-
-send_and_wait(Db, Args) ->
-    Db ! [self() | Args],
-    receive
-        R -> R
-    after 1000 ->
-            throw({error, timeout})
-    end.
-
-write(Key, Value, Db) ->
-    Db ! {write, Key, Value, self()},
-    send_and_wait(Db, [write, Key, Value]).
-
-read(Key, Db) ->
-    send_and_wait(Db, [read, Key]).
-
-delete(Key, Db) ->
-    send_and_wait(Db, [delete, Key]).
-
-match(Element, Db) ->
-    send_and_wait(Db, [match, Element]).
-
-destroy(Db) ->
-    send_and_wait(Db, [destroy]).
-
-code_upgrade(Db) ->
-    send_and_wait(Db, [code_upgrade]).
-
-
-loop(State) ->
-    receive
-        [Pid, write, Key, Value] ->
-            NewState = db:write(Key, Value, State),
-            Pid ! ok,
-            loop(NewState);
-        [Pid, delete, Key] ->
-            NewState = db:delete(Key, State),
-            Pid ! ok,
-            loop(NewState);
-        [Pid, read, Key] ->
-            Result = db:read(Key, State),
-            Pid ! Result,
-            loop(State);
-        [Pid, match, Element] ->
-            Result = db:match(Element, State),
-            Pid ! Result,
-            loop(State);
-        [Pid, destroy] -> Result = db:destroy(State),
-                          Pid ! Result
-    end.
-
-
+-export([test/0, test_helper/2]).
+-export([ new/0
+        , init/0
+        , write/3
+        , read/2
+        , delete/2
+        , match/2
+        , destroy/1
+        , lock/1
+        , unlock/1
+        , code_upgrade/1
+        ]).
 
 test() ->
-    Db = my_db:new(),
-    ok = my_db:write(barcelona, soccer, Db),
-    {ok, soccer} = my_db:read(barcelona, Db),
-    {error, instance} = my_db:read(chelsea, Db),
-    ok = my_db:write(barcelona, basketball, Db),
-    {ok, basketball} = my_db:read(barcelona, Db),
-    ok = my_db:delete(barcelona, Db),
-    {error, instance} = my_db:read(barcelona, Db),
-    ok = my_db:write(river, soccer, Db),
-    ok = my_db:write(manchester_city, soccer, Db),
-    Result = my_db:match(soccer, Db),
-    [] = Result -- [manchester_city, river],
-    [] = [manchester_city, river] -- Result,
-    [] = my_db:match(chelsew, Db),
-    ok = my_db:destroy(Db),
-    try my_db:read(something, Db) of
-       Something -> throw({unexpected_result, Something})
-    catch
-       _:_ -> ok
-    end,
-    ok.
+  DbRef = my_db:new(),
+  ok = my_db:write(barcelona, soccer, DbRef),
+  {ok, soccer} = my_db:read(barcelona, DbRef),
+  {error, instance} = my_db:read(chelsea, DbRef),
+  ok = my_db:write(barcelona, basketball, DbRef),
+  {ok, basketball} = my_db:read(barcelona, DbRef),
+  ok = my_db:delete(barcelona, DbRef),
+  {error, instance} = my_db:read(barcelona, DbRef),
+  ok = my_db:write(river, soccer, DbRef),
+  ok = my_db:write(manchester_city, soccer, DbRef),
+  Result = my_db:match(soccer, DbRef),
+  [] = Result -- [manchester_city, river],
+  [] = [manchester_city, river] -- Result,
+  [] = my_db:match(chelsea, DbRef),
+  ok = my_db:lock(DbRef),
+  ok = my_db:write(chicago_bulls, basketball, DbRef),
+  spawn(my_db, test_helper, [self(), DbRef]),
+  receive
+    done -> ok
+  end,
+  {ok, basketball} = my_db:read(chicago_bulls, DbRef),
+  my_db:unlock(DbRef),
+  timer:sleep(1000),
+  {ok, baseball} = my_db:read(chicago_bulls, DbRef),
+  ok = my_db:destroy(DbRef),
+  try my_db:read(something, DbRef) of
+    Something -> throw({unexpected_result, Something})
+  catch
+    _:_ -> ok
+  end,
+
+  NewDbRef = my_db:new(),
+  [] = db:new(),
+  my_db:write(boston_celtics, basketball, NewDbRef),
+  compile:file("db"),
+  code:load_abs("db"),
+  true = is_integer(db:new()),
+  my_db:code_upgrade(NewDbRef),
+  {ok, basketball} = my_db:read(boston_celtics, NewDbRef),
+  ok.
+
+test_helper(MainTester, DbRef) ->
+  ok = my_db:write(chicago_bulls, baseball, DbRef),
+  MainTester ! done.
+
+
+new() -> spawn(my_db, init, []).
+write(Key, Value, DbPid) ->
+  cast(DbPid, #{action => write, key => Key, value => Value}).
+read(Key, DbPid) ->
+  call(DbPid, #{action => read, key => Key}).
+delete(Key, DbPid) ->
+  cast(DbPid, #{action => delete, key => Key}).
+match(Value, DbPid) ->
+  call(DbPid, #{action => match, value => Value}).
+destroy(DbPid) ->
+  cast(DbPid, #{action => stop}).
+lock(DbPid) ->
+  call(DbPid, #{action => lock}).
+unlock(DbPid) ->
+  cast(DbPid, #{action => unlock}).
+code_upgrade(DbPid) ->
+  cast(DbPid, #{action => code_upgrade}).
+
+call(DbPid, Message) ->
+  DbPid ! Message#{caller => self()},
+  receive
+    Response -> Response
+  after 1000 ->
+    throw(timeout)
+  end.
+
+cast(DbPid, Message) ->
+  DbPid ! Message#{caller => self()},
+  ok.
+
+init() ->
+  State = db:new(),
+  process_flag(trap_exit, true),
+  unlocked(State).
+
+unlocked(State) ->
+  receive
+    #{action := write, key := Key, value := Value} ->
+      NewState = db:write(Key, Value, State),
+      unlocked(NewState);
+    #{action := delete, key := Key} ->
+      NewState = db:delete(Key, State),
+      unlocked(NewState);
+    #{action := read, key := Key, caller := Caller} ->
+      Result = db:read(Key, State),
+      Caller ! Result,
+      unlocked(State);
+    #{action := match, value := Value, caller := Caller} ->
+      Result = db:match(Value, State),
+      Caller ! Result,
+      unlocked(State);
+    #{action := lock, caller := Caller} ->
+      link(Caller),
+      Caller ! ok,
+      locked(Caller, State);
+    #{action := unlock} ->
+      unlocked(State);
+    {'EXIT', _, _} ->
+      unlocked(State);
+    #{action := code_upgrade} ->
+      NewState = db:code_upgrade(State),
+      unlocked(NewState);
+    #{action := stop} -> "ok, it was a nice loop. Bye"
+  end.
+
+locked(Caller, State) ->
+  receive
+    {'EXIT', Caller, _} ->
+      unlocked(State);
+    Msg = #{caller := Caller} ->
+      case Msg of
+        #{action := write, key := Key, value := Value} ->
+          NewState = db:write(Key, Value, State),
+          locked(Caller, NewState);
+        #{action := delete, key := Key} ->
+          NewState = db:delete(Key, State),
+          locked(Caller, NewState);
+        #{action := read, key := Key, caller := Caller} ->
+          Result = db:read(Key, State),
+          Caller ! Result,
+          locked(Caller, State);
+        #{action := match, value := Value, caller := Caller} ->
+          Result = db:match(Value, State),
+          Caller ! Result,
+          locked(Caller, State);
+        #{action := lock} ->
+          Caller ! ok,
+          locked(Caller, State);
+        #{action := unlock} ->
+          unlink(Caller),
+          unlocked(State);
+        #{action := code_upgrade} ->
+          NewState = db:code_upgrade(State),
+          unlocked(NewState);
+        #{action := stop} -> "ok, it was a nice loop. Bye"
+      end
+  end.

@@ -1,20 +1,13 @@
-% -*- mode:erlang -*-
-
 -module(temp).
--export([convert/1, test/0]).
 
-f2c(V) ->
-    (5 * (V - 32)) / 9.
+-export([test/0]).
+-export([convert/1]).
 
-c2f(V) ->
-    ((9 * V) / 5) + 32.
-
-convert({c, V}) ->
-    c2f(V);
-convert({f, V}) ->
-    f2c(V).
+convert({f, F}) -> {c, (5 * (F - 32)) / 9};
+convert({c, C}) -> {f, C * 9 / 5 + 32}.
 
 test() ->
-    -12.222222222222221 = temp:convert({f, 10}),
-    50.0 = temp:convert({c, 10}),
-    ok.
+  {c, -12.222222222222221} = temp:convert({f, 10}),
+  {f, -2.0} =
+    temp:convert({c, -18.88888888888889}),
+  ok.
