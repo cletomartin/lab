@@ -1,0 +1,31 @@
+namespace :unit do
+  desc 'Run rspec'
+  require 'rspec/core/rake_task'
+  RSpec::Core::RakeTask.new(:rspec) do |t|
+    t.pattern = Dir.glob('rspec/**/*_spec.rb')
+    t.rspec_opts = '-I . -c -f d'
+  end
+
+  desc 'Run minitest'
+  require 'rake/testtask'
+  Rake::TestTask.new(:minitest) do |t|
+    t.libs << '.'
+    t.test_files = FileList['minitest/test*.rb']
+    t.verbose = true
+  end
+end
+
+desc 'Run all tests'
+task tests: ['unit:minitest', 'unit:rspec'] do
+  puts 'All tests done'
+end
+
+desc 'Remove temp files'
+task :remove_temp_files do
+  files = Dir['*~']
+  rm(files, verbose: true) unless files.empty?
+end
+
+task default: [:remove_temp_files, :tests] do
+  puts 'All done'
+end
