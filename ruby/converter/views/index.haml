@@ -1,0 +1,24 @@
+%html
+  %body
+    %h1 Log Data Converter
+    %h2 Upload a new file
+    %form(method="post" enctype='multipart/form-data')
+      %input(type='file' name='newfile')
+      %br
+      %input(type='submit' value='Upload!')
+    - if @files.empty?
+      %h3 No files uploaded yet!
+    - else
+      %h2 Convert a file
+      %form{:action => '/convert', :method => 'post'}
+        %select(name='thefile')
+          - @files.each do |f|
+            %option{value: "#{f}"} #{File.basename(f)}
+        %input(type='submit' value='Convert!')
+      %h2 Delete a file
+      %form{:action => '/delete', :method => 'post'}
+        %select(name='thefile')
+          - @files.each do |f|
+            %option{value: "#{f}"} #{File.basename(f)}
+        %input(type='submit' value='Delete!')
+          

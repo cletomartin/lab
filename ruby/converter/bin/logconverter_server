@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+
+require 'converter/logconverter_app'
+LogConverterApp.new
+LogConverterApp.run!

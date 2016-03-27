@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+require 'converter/logconverter'
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = 'Usage: logconverter INPUT_FILE [options]'
+  opts.on('-o', '--output OUTPUT_FILE') { |o| options[:output_file] = o }
+end.parse!
+
+fail 'Need one input file to convert' if ARGV.length < 1
+
+input_file = ARGV[0]
+output_file = (
+  options[:output_file] ||
+  File.join(
+    File.dirname(input_file),
+    File.basename(
+      input_file,
+      File.extname(input_file)) + '_converted' + File.extname(input_file))
+)
+
+File.open(input_file).read()
+lc = LogConverter.new
+open(output_file, 'w') do |f|
+  f.write(lc.convert(open(input_file).read()))
+end

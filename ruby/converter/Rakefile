@@ -1,0 +1,6 @@
+require 'rspec/core/rake_task'
+RSpec::Core::RakeTask.new(:rspec) do |t|
+  t.rspec_opts = '-I . -c -f d'
+end
+
+require 'rake/clean'
