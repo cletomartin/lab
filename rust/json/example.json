@@ -1,0 +1,6 @@
+{
+  "my_test": {
+    "count": 1
+  },
+  "my_other_test": ["hello", 1]
+}
